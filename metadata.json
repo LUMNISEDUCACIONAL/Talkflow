@@ -1,0 +1,5 @@
+{
+  "name": "TalkFlow Dashboard",
+  "description": "A replica of the TalkFlow Lumins dashboard, showcasing user statistics and study activities in a visually appealing dark-themed interface.",
+  "requestFramePermissions": []
+}
