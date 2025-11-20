@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
-import { LogoIcon, ChartBarIcon, DocumentTextIcon, MusicIcon as MusicNodeIcon, ChatBubbleIcon, ChevronRightIcon, ChevronLeftIcon, CheckCircleIcon } from './icons/Icons.tsx';
+import { LogoIcon, DocumentTextIcon, ChatBubbleIcon, ChevronRightIcon, ChevronLeftIcon, CheckCircleIcon } from './icons/Icons.tsx';
 
-export type NodeType = 'doc' | 'chat' | 'music';
+export type NodeType = 'doc' | 'chat';
 type UserLevel = 'A1' | 'A2' | 'B1' | 'B2';
 
 interface NodeData {
@@ -18,7 +18,6 @@ interface TreasureMapProps {
 
 const nodeTypesConfig: { [key in NodeType]: { Icon: React.FC<any>, color: string, size: string, filterClass: string } } = {
   doc: { Icon: DocumentTextIcon, color: 'from-yellow-400 to-orange-500', size: 'w-20 h-20', filterClass: '[filter:drop-shadow(0_0_8px_rgba(251,191,36,0.6))] hover:[filter:drop-shadow(0_0_12px_rgba(251,191,36,0.9))]' },
-  music: { Icon: MusicNodeIcon, color: 'from-pink-500 to-purple-600', size: 'w-24 h-24', filterClass: '[filter:drop-shadow(0_0_16px_rgba(192,38,211,0.6))] hover:[filter:drop-shadow(0_0_24px_rgba(192,38,211,0.9))]' },
   chat: { Icon: ChatBubbleIcon, color: 'from-yellow-400 to-orange-500', size: 'w-20 h-20', filterClass: '[filter:drop-shadow(0_0_8px_rgba(251,191,36,0.6))] hover:[filter:drop-shadow(0_0_12px_rgba(251,191,36,0.9))]' },
 };
 
@@ -30,7 +29,7 @@ const levelBackgrounds: { [key: string]: string } = {
     default: 'bg-[#1e2639]'
 }
 
-const activityPattern: NodeType[] = ['doc', 'chat', 'music'];
+const activityPattern: NodeType[] = ['doc', 'chat'];
 
 export const TOTAL_NODES = 108;
 const allNodes: NodeData[] = Array.from({ length: TOTAL_NODES }, (_, i) => ({
@@ -42,7 +41,7 @@ const NODES_PER_PAGE = 3;
 const TOTAL_PAGES = Math.ceil(allNodes.length / NODES_PER_PAGE);
 
 const defaultMascotMessages = [ "Estou torcendo por você!", "Que progresso!", "Você consegue! ✨", "Continue assim! 🚀" ];
-const nodeTypeMessages: { [key in NodeType]: string } = { doc: "Hora de um pouco de leitura.", music: "Aumente o som e aprenda!", chat: "Vamos praticar a conversação." };
+const nodeTypeMessages: { [key in NodeType]: string } = { doc: "Hora de um pouco de leitura.", chat: "Vamos praticar a conversação." };
 
 const TreasureMap: React.FC<TreasureMapProps> = ({ userLevel, completedNodes, onStartActivity }) => {
     const [currentPage, setCurrentPage] = useState(0);

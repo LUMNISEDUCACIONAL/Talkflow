@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import Header from './components/Header.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import PreTestIntroduction from './components/PreTestIntroduction.tsx';
@@ -9,17 +9,13 @@ import LevelReveal from './components/LevelReveal.tsx';
 import Activity, { Question } from './components/Activity.tsx';
 import { questionBank } from './components/Activity.tsx';
 import ActivityResult from './components/ActivityResult.tsx';
-import TuneFlow from './components/SpotifyActivity.tsx';
 import Graduation from './components/Graduation.tsx';
-import Auth, { User, Credentials } from './components/Auth.tsx';
+import TuneFlow from './components/TuneFlow.tsx';
 
-export type View = 'dashboard' | 'pre-test' | 'test' | 'level-reveal' | 'treasure-map' | 'activity' | 'activity-result' | 'tuneflow' | 'graduation';
+export type View = 'dashboard' | 'pre-test' | 'test' | 'level-reveal' | 'treasure-map' | 'activity' | 'activity-result' | 'graduation' | 'tuneflow' | 'tune-flow-test';
 export type UserLevel = 'A1' | 'A2' | 'B1' | 'B2';
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-
   const [view, setView] = useState<View>('dashboard');
   const [userLevel, setUserLevel] = useState<UserLevel>('A1');
   const [hasCompletedTest, setHasCompletedTest] = useState(false);
@@ -29,125 +25,6 @@ const App: React.FC = () => {
   const [seenQuestions, setSeenQuestions] = useState<Record<UserLevel, string[]>>({ A1: [], A2: [], B1: [], B2: [] });
   const [activityQuestions, setActivityQuestions] = useState<Question[]>([]);
   const [levelChanged, setLevelChanged] = useState<UserLevel | null>(null);
-
-  const saveProgress = useCallback((progressData: any) => {
-    if (!currentUser) return;
-    try {
-        const progressKey = `talkflow-progress-${currentUser.email}`;
-        const dataToSave = {
-            userLevel: progressData.userLevel,
-            hasCompletedTest: progressData.hasCompletedTest,
-            completedNodes: progressData.completedNodes,
-            seenQuestions: progressData.seenQuestions,
-        };
-        localStorage.setItem(progressKey, JSON.stringify(dataToSave));
-    } catch (error) {
-        console.error("Failed to save progress to localStorage:", error);
-        alert("Erro: Não foi possível salvar seu progresso localmente.");
-    }
-  }, [currentUser]);
-
-  // Load user data from localStorage on login
-  useEffect(() => {
-    const loadProgress = () => {
-        if (currentUser) {
-            try {
-                const progressKey = `talkflow-progress-${currentUser.email}`;
-                const savedProgress = localStorage.getItem(progressKey);
-
-                if (savedProgress) {
-                    const data = JSON.parse(savedProgress);
-                    setHasCompletedTest(data.hasCompletedTest);
-                    setUserLevel(data.userLevel || 'A1');
-                    setCompletedNodes(data.completedNodes || []);
-                    setSeenQuestions(data.seenQuestions || { A1: [], A2: [], B1: [], B2: [] });
-                } else {
-                    // New user, set default state
-                    setUserLevel('A1');
-                    setHasCompletedTest(false);
-                    setCompletedNodes([]);
-                    setSeenQuestions({ A1: [], A2: [], B1: [], B2: [] });
-                }
-            } catch (error) {
-                console.error("Failed to load progress from localStorage:", error);
-                alert("Erro: Não foi possível carregar seu progresso local.");
-            }
-            setView('dashboard');
-        }
-    };
-    loadProgress();
-  }, [currentUser]);
-
-  // Check for existing session on initial load
-  useEffect(() => {
-    try {
-      const sessionUser = localStorage.getItem('talkflow-session');
-      if (sessionUser) {
-        const user: User = JSON.parse(sessionUser);
-        setCurrentUser(user);
-        setIsAuthenticated(true);
-      }
-    } catch (error) {
-      console.error("Failed to parse session data:", error);
-      localStorage.removeItem('talkflow-session');
-    }
-  }, []);
-
-  const handleRegister = async (user: Omit<User, 'passwordConfirmation'>): Promise<string | null> => {
-    try {
-        const usersJSON = localStorage.getItem('talkflow-users');
-        const users = usersJSON ? JSON.parse(usersJSON) : [];
-
-        const existingUser = users.find((u: User) => u.email === user.email);
-        if (existingUser) {
-            return 'Este e-mail já está em uso.';
-        }
-
-        users.push(user);
-        localStorage.setItem('talkflow-users', JSON.stringify(users));
-
-        await handleLogin({ email: user.email, password: user.password });
-        return null;
-    } catch (error) {
-        console.error("Registration failed:", error);
-        return 'Ocorreu um erro durante o registro.';
-    }
-  };
-
-  const handleLogin = async (credentials: Credentials): Promise<string | null> => {
-     try {
-        const usersJSON = localStorage.getItem('talkflow-users');
-        if (!usersJSON) {
-            return 'E-mail ou senha inválidos.';
-        }
-        const users: User[] = JSON.parse(usersJSON);
-        const user = users.find(u => u.email === credentials.email);
-
-        if (!user || user.password !== credentials.password) {
-            return 'E-mail ou senha inválidos.';
-        }
-
-        const userToStore = { name: user.name, email: user.email };
-        localStorage.setItem('talkflow-session', JSON.stringify(userToStore));
-        setCurrentUser(userToStore);
-        setIsAuthenticated(true);
-        return null;
-    } catch (error) {
-        console.error("Login failed:", error);
-        return 'Ocorreu um erro durante o login.';
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('talkflow-session');
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    setView('dashboard');
-    setUserLevel('A1');
-    setHasCompletedTest(false);
-    setCompletedNodes([]);
-    setSeenQuestions({ A1: [], A2: [], B1: [], B2: [] });
-  };
 
   const handleInitiateTest = () => {
     if (!hasCompletedTest) {
@@ -169,13 +46,8 @@ const App: React.FC = () => {
     
     setUserLevel(newLevel);
     setHasCompletedTest(true);
-    
-    saveProgress({
-      userLevel: newLevel,
-      hasCompletedTest: true,
-      completedNodes: [], // Reset nodes on new test completion
-      seenQuestions: seenQuestions,
-    });
+    setCompletedNodes([]);
+    setSeenQuestions({ A1: [], A2: [], B1: [], B2: [] });
     
     setView('level-reveal');
   };
@@ -191,45 +63,29 @@ const App: React.FC = () => {
   const handleStartActivity = useCallback((nodeId: number, nodeType: NodeType) => {
     setCurrentActivityId(nodeId);
     setLevelChanged(null); 
-    if (nodeType === 'music') {
-        setView('tuneflow');
-    } else {
-        const allQuestionsForLevel = questionBank[userLevel] || [];
-        let seenQuestionsForLevel = seenQuestions[userLevel] || [];
+    
+    // Logic for 'doc' and 'chat' types (standard activities)
+    const allQuestionsForLevel = questionBank[userLevel] || [];
+    let seenQuestionsForLevel = seenQuestions[userLevel] || [];
 
-        let unseenQuestions = allQuestionsForLevel.filter(q => !seenQuestionsForLevel.includes(q.id));
+    let unseenQuestions = allQuestionsForLevel.filter(q => !seenQuestionsForLevel.includes(q.id));
 
-        if (unseenQuestions.length === 0 && allQuestionsForLevel.length > 0) {
-            seenQuestionsForLevel = [];
-            unseenQuestions = allQuestionsForLevel;
-            
-            const newSeenQuestions = { ...seenQuestions, [userLevel]: [] };
-            setSeenQuestions(newSeenQuestions);
-            saveProgress({
-                userLevel: userLevel,
-                hasCompletedTest: hasCompletedTest,
-                completedNodes: completedNodes,
-                seenQuestions: newSeenQuestions
-            });
-        }
-        
-        const shuffled = unseenQuestions.sort(() => 0.5 - Math.random());
-        const selectedQuestions = shuffled.slice(0, 10);
-        
-        setActivityQuestions(selectedQuestions);
-        setView('activity');
+    if (unseenQuestions.length === 0 && allQuestionsForLevel.length > 0) {
+        const newSeenQuestions = { ...seenQuestions, [userLevel]: [] };
+        setSeenQuestions(newSeenQuestions);
+        unseenQuestions = allQuestionsForLevel;
     }
-  }, [userLevel, seenQuestions, completedNodes, hasCompletedTest, saveProgress]);
+    
+    const shuffled = unseenQuestions.sort(() => 0.5 - Math.random());
+    const selectedQuestions = shuffled.slice(0, 10);
+    
+    setActivityQuestions(selectedQuestions);
+    setView('activity');
+  }, [userLevel, seenQuestions]);
   
-  const completeNode = (nodeId: number) => {
+  const completeNode = (nodeId: number): boolean => {
       const newCompletedNodes = Array.from(new Set([...completedNodes, nodeId]));
       setCompletedNodes(newCompletedNodes);
-      saveProgress({
-          userLevel: userLevel,
-          hasCompletedTest: hasCompletedTest,
-          completedNodes: newCompletedNodes,
-          seenQuestions: seenQuestions
-      });
       setCurrentActivityId(null);
 
       if (newCompletedNodes.length >= TOTAL_NODES) {
@@ -241,8 +97,7 @@ const App: React.FC = () => {
 
   const handleFinishActivity = (score: number, total: number) => {
     if (currentActivityId !== null) {
-      const isGraduating = completeNode(currentActivityId);
-      if(isGraduating) return;
+      if(completeNode(currentActivityId)) return;
       
       const newSeenIds = activityQuestions.map(q => q.id);
       const updatedSeenForLevel = Array.from(new Set([...(seenQuestions[userLevel] || []), ...newSeenIds]));
@@ -251,32 +106,16 @@ const App: React.FC = () => {
       
       setLastActivityScore({ score, total });
       
-      let finalLevel = userLevel;
+      const levels: UserLevel[] = ['A1', 'A2', 'B1', 'B2'];
       const percentage = (score / total) * 100;
       if (percentage >= 80 && userLevel !== 'B2') {
-          const levels: UserLevel[] = ['A1', 'A2', 'B1', 'B2'];
           const currentLevelIndex = levels.indexOf(userLevel);
           const newLevel = levels[currentLevelIndex + 1];
           setUserLevel(newLevel);
           setLevelChanged(newLevel);
-          finalLevel = newLevel;
       }
       
-      saveProgress({
-          userLevel: finalLevel,
-          hasCompletedTest: hasCompletedTest,
-          completedNodes: completedNodes, // This is stale, use the updated one from completeNode
-          seenQuestions: newSeenQuestions
-      });
-
       setView('activity-result');
-    }
-  };
-
-  const handleFinishTuneFlow = () => {
-    if (currentActivityId !== null) {
-        if(completeNode(currentActivityId)) return;
-        setView('treasure-map');
     }
   };
   
@@ -298,19 +137,10 @@ const App: React.FC = () => {
   
   const handleReset = () => {
       if (window.confirm("Você tem certeza que quer resetar todo o seu progresso? Esta ação não pode ser desfeita.")) {
-          const initialProgress = {
-              userLevel: 'A1' as UserLevel,
-              hasCompletedTest: false,
-              completedNodes: [],
-              seenQuestions: { A1: [], A2: [], B1: [], B2: [] }
-          };
-          
-          saveProgress(initialProgress);
-          
-          setUserLevel(initialProgress.userLevel);
-          setHasCompletedTest(initialProgress.hasCompletedTest);
-          setCompletedNodes(initialProgress.completedNodes);
-          setSeenQuestions(initialProgress.seenQuestions);
+          setUserLevel('A1');
+          setHasCompletedTest(false);
+          setCompletedNodes([]);
+          setSeenQuestions({ A1: [], A2: [], B1: [], B2: [] });
           
           localStorage.removeItem('talkflow-audio-cache');
           localStorage.removeItem('talkflow-lyrics-cache');
@@ -345,27 +175,21 @@ const App: React.FC = () => {
                   onReturnToMap={handleReturnToMap}
                   newLevel={levelChanged}
                 />;
-      case 'tuneflow':
-        return <TuneFlow onFinish={handleFinishTuneFlow} userLevel={userLevel} />;
       case 'graduation':
         return <Graduation onReset={handleReset} />;
+      case 'tuneflow':
+        return <TuneFlow />;
+      case 'tune-flow-test':
+        return <TuneFlow />;
       case 'dashboard':
       default:
-        return <Dashboard onStartTest={handleInitiateTest} userLevel={userLevel} userName={currentUser!.name} />;
+        return <Dashboard onStartTest={handleInitiateTest} userLevel={userLevel} userName={'Usuário'} />;
     }
-  }
-  
-  if (!isAuthenticated || !currentUser) {
-    return (
-       <div className="min-h-screen bg-[#10141f] text-white font-sans flex items-center justify-center p-4">
-            <Auth onLogin={handleLogin} onRegister={handleRegister} />
-       </div>
-    )
   }
 
   return (
     <div className="min-h-screen bg-[#10141f] text-white font-sans flex flex-col">
-      <Header onNavigate={handleNavigate} activeView={view} onReset={handleReset} onLogout={handleLogout} />
+      <Header onNavigate={handleNavigate} activeView={view} />
       <main className="p-4 sm:p-6 lg:p-8 flex-grow">
         {renderContent()}
       </main>

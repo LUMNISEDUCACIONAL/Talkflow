@@ -1,36 +1,23 @@
 
 import React, { useState } from 'react';
-import { LogoIcon, HomeIcon, MapIcon, MusicIcon, ZapIcon, RefreshIcon, MenuIcon, XIcon, LogOutIcon } from './icons/Icons.tsx';
+import { LogoIcon, HomeIcon, MapIcon, MenuIcon, XIcon, MusicIcon } from './icons/Icons.tsx';
 import { View } from '../App.tsx';
 
 interface HeaderProps {
     onNavigate: (view: View) => void;
     activeView: View;
-    onReset: () => void;
-    onLogout: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNavigate, activeView, onReset, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ onNavigate, activeView }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const linkClasses = "flex items-center gap-2 hover:text-white transition-colors py-2 px-3 rounded-md";
   const activeClasses = "bg-slate-700/50 text-white";
-  const disabledClasses = "opacity-50 cursor-not-allowed";
-
+  
   const handleMobileLinkClick = (view: View) => {
     onNavigate(view);
     setIsMenuOpen(false);
   };
-  
-  const handleMobileResetClick = () => {
-    onReset();
-    setIsMenuOpen(false);
-  }
-  
-  const handleMobileLogoutClick = () => {
-    onLogout();
-    setIsMenuOpen(false);
-  }
 
   const renderNavLinks = (isMobile = false) => (
     <>
@@ -42,34 +29,25 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, activeView, onReset, onLogo
         <span>Dashboard</span>
       </button>
       <button
+          onClick={() => isMobile ? handleMobileLinkClick('tune-flow-test') : onNavigate('tune-flow-test')}
+          className={`${linkClasses} ${isMobile ? 'w-full justify-start' : ''} ${activeView === 'tune-flow-test' ? activeClasses : ''}`}
+      >
+        <MusicIcon className="h-4 w-4" />
+        <span>Tune Flow</span>
+      </button>
+      <button
           onClick={() => isMobile ? handleMobileLinkClick('treasure-map') : onNavigate('treasure-map')}
           className={`${linkClasses} ${isMobile ? 'w-full justify-start' : ''} ${activeView === 'treasure-map' ? activeClasses : ''}`}
       >
         <MapIcon className="h-4 w-4" />
         <span>Mapa do Tesouro</span>
       </button>
-      <a href="#" className={`${linkClasses} ${isMobile ? 'w-full justify-start' : ''} ${disabledClasses}`}>
+      <button
+          onClick={() => isMobile ? handleMobileLinkClick('tuneflow') : onNavigate('tuneflow')}
+          className={`${linkClasses} ${isMobile ? 'w-full justify-start' : ''} ${activeView === 'tuneflow' ? activeClasses : ''}`}
+      >
         <MusicIcon className="h-4 w-4" />
         <span>TuneFlow</span>
-      </a>
-       <button 
-          onClick={isMobile ? handleMobileLogoutClick : onLogout}
-          className={`${linkClasses} ${isMobile ? 'w-full justify-start' : ''}`}
-      >
-        <LogOutIcon className="h-4 w-4" />
-        <span>Sair</span>
-      </button>
-      <a href="#" className={`${linkClasses} ${isMobile ? 'w-full justify-start' : ''} ${disabledClasses}`}>
-        <ZapIcon className="h-4 w-4" />
-        <span>Admin</span>
-      </a>
-       <button 
-          onClick={isMobile ? handleMobileResetClick : onReset}
-          title="Resetar Progresso"
-          className={`flex items-center gap-2 hover:text-red-400 text-slate-400 transition-colors py-2 px-3 rounded-md ${isMobile ? 'w-full justify-start' : ''}`}
-      >
-        <RefreshIcon className="h-4 w-4" />
-        {isMobile && <span>Resetar Progresso</span>}
       </button>
     </>
   );
