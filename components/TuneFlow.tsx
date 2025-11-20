@@ -1,6 +1,24 @@
 
 import React, { useState } from 'react';
-import { SearchIcon, MusicIcon } from './icons/Icons.tsx';
+import { SearchIcon, MusicIcon, DocumentTextIcon } from './icons/Icons.tsx';
+import { spotifyProxy } from './SpotifyProxy.ts';
+import { lyricsServer } from './LyricsServer.ts';
+
+// --- Mocking the Gemini Builder Internal Function Call ---
+const base = {
+  gemini: {
+    invoke: async (functionName: string, args: any): Promise<any> => {
+       if (functionName === 'spotifyProxy') {
+          return await spotifyProxy(args);
+       }
+       if (functionName === 'lyricsServer') {
+          return await lyricsServer(args);
+       }
+       throw new Error(`Function ${functionName} not found`);
+    }
+  }
+};
+// ---------------------------------------------------------
 
 interface SpotifyTrack {
     id: string;
@@ -17,6 +35,11 @@ const TuneFlow: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Lyrics State
+    const [lyrics, setLyrics] = useState<string | null>(null);
+    const [loadingLyrics, setLoadingLyrics] = useState(false);
+    const [lyricsError, setLyricsError] = useState<string | null>(null);
+
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!query.trim()) return;
@@ -25,28 +48,59 @@ const TuneFlow: React.FC = () => {
         setError(null);
         setTracks([]);
         setSelectedTrack(null); // Reset player on new search
+        setLyrics(null); // Reset lyrics
+        setLyricsError(null);
 
         try {
-            // Direct call to our Base44-style backend
-            const response = await fetch(`http://localhost:3000/api/spotify/search?q=${encodeURIComponent(query)}`);
+            // Call the internal function via the Gemini Builder proxy pattern
+            const response = await base.gemini.invoke('spotifyProxy', {
+                action: 'search',
+                query: query
+            });
             
-            if (!response.ok) {
-                throw new Error('Erro ao buscar músicas. Verifique o servidor.');
-            }
+            setTracks(response.tracks);
 
-            const data = await response.json();
-            setTracks(data.tracks);
-
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            setError('Falha ao conectar com o serviço de música.');
+            setError(err.message || 'Falha ao buscar músicas.');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSelectTrack = (track: SpotifyTrack) => {
+    const handleSelectTrack = async (track: SpotifyTrack) => {
         setSelectedTrack(track);
+        
+        // Reset Lyrics State
+        setLyrics(null);
+        setLyricsError(null);
+        setLoadingLyrics(true);
+
+        try {
+            console.log("Fetching lyrics via lyricsServer for:", track.name, track.artist);
+            
+            // Calling the internal server function
+            const data = await base.gemini.invoke("lyricsServer", {
+                track: track.name,
+                artist: track.artist
+            });
+
+            if (data.lyrics) {
+                setLyrics(data.lyrics);
+            } else if (data.error) {
+                console.error("Lyrics Server Error:", data.error);
+                setLyricsError("Erro ao buscar letra.");
+            } else {
+                setLyricsError("Letra não encontrada para esta música.");
+            }
+
+        } catch (e: any) {
+            console.error("Failed to fetch lyrics (Frontend catch):", e);
+            setLyricsError("Erro de conexão ao buscar letra.");
+            setLyrics(null);
+        } finally {
+            setLoadingLyrics(false);
+        }
     };
 
     return (
@@ -134,7 +188,7 @@ const TuneFlow: React.FC = () => {
                                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                                 Tocando Agora
                             </h2>
-                            <div className="rounded-lg overflow-hidden bg-black shadow-lg">
+                            <div className="rounded-lg overflow-hidden bg-black shadow-lg mb-6">
                                 <iframe
                                     src={`https://open.spotify.com/embed/track/${selectedTrack.id}`}
                                     width="100%"
@@ -144,10 +198,43 @@ const TuneFlow: React.FC = () => {
                                     loading="lazy"
                                 />
                             </div>
-                            <div className="mt-4 text-center">
+                            <div className="text-center mb-6">
                                 <p className="text-sm text-slate-400">
                                     Você está ouvindo <span className="text-white font-medium">{selectedTrack.name}</span>
                                 </p>
+                            </div>
+
+                            {/* Lyrics Section */}
+                            <div className="border-t border-slate-700 pt-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <DocumentTextIcon className="h-5 w-5 text-green-500" />
+                                    <h2 className="text-lg font-bold text-white">Letra</h2>
+                                </div>
+                                
+                                {loadingLyrics ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <div className="animate-pulse flex flex-col items-center gap-2">
+                                            <div className="h-2 w-32 bg-slate-700 rounded"></div>
+                                            <div className="h-2 w-24 bg-slate-700 rounded"></div>
+                                            <div className="h-2 w-28 bg-slate-700 rounded"></div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-slate-900/50 rounded-lg p-4 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                        {lyrics ? (
+                                            <pre className="text-slate-300 font-sans whitespace-pre-wrap text-sm leading-relaxed">
+                                                {lyrics}
+                                            </pre>
+                                        ) : (
+                                            <p className="text-slate-500 text-sm text-center italic py-4">
+                                                {lyricsError || "Letra não encontrada para esta música."}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                                {lyrics && (
+                                     <p className="text-xs text-slate-600 mt-2 text-center">Powered by Musixmatch</p>
+                                )}
                             </div>
                         </div>
                     </div>

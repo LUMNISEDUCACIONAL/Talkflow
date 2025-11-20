@@ -13,62 +13,55 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Spotify Configuration
-const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
-const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-
-// Token Cache
+// Spotify Token Cache
 let spotifyAccessToken = null;
 let spotifyTokenExpiry = null;
 
 // Helper: Get Spotify Token (Client Credentials Flow)
 async function getSpotifyToken() {
-    // Check if token is cached and valid (with 1 minute buffer)
+    // Return cached token if valid (with 1 minute buffer)
     if (spotifyAccessToken && Date.now() < spotifyTokenExpiry) {
         return spotifyAccessToken;
     }
 
-    if (!CLIENT_ID || !CLIENT_SECRET) {
-        throw new Error('Spotify credentials missing in .env file');
+    const clientId = process.env.SPOTIFY_CLIENT_ID;
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+        throw new Error('Missing Spotify Credentials in .env');
     }
 
-    console.log('Refreshing Spotify Access Token...');
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-    const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+            Authorization: `Basic ${credentials}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "grant_type=client_credentials",
+    });
 
-    try {
-        const response = await fetch('https://accounts.spotify.com/api/token', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Basic ${credentials}`,
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'grant_type=client_credentials',
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Spotify Auth Failed: ${response.status} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        spotifyAccessToken = data.access_token;
-        // Expire 1 minute before actual expiration
-        spotifyTokenExpiry = Date.now() + (data.expires_in * 1000) - 60000;
-
-        return spotifyAccessToken;
-    } catch (error) {
-        console.error('Error fetching Spotify token:', error);
-        throw error;
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Spotify Auth Failed: ${response.status} - ${errorText}`);
     }
+
+    const data = await response.json();
+    spotifyAccessToken = data.access_token;
+    // Set expiry 1 minute before actual expiration to be safe
+    spotifyTokenExpiry = Date.now() + (data.expires_in * 1000) - 60000;
+
+    return spotifyAccessToken;
 }
 
-// Route: Get Token (Required by some frontend implementations)
+// Route: Get Token
 app.get('/api/spotify/token', async (req, res) => {
     try {
         const token = await getSpotifyToken();
         res.json({ access_token: token });
     } catch (error) {
+        console.error("Token Error:", error);
         res.status(500).json({ error: 'Failed to obtain access token' });
     }
 });
@@ -83,7 +76,7 @@ app.get('/api/spotify/search', async (req, res) => {
 
     try {
         const token = await getSpotifyToken();
-        
+
         const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=30`, {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -91,31 +84,29 @@ app.get('/api/spotify/search', async (req, res) => {
         });
 
         if (!response.ok) {
-            throw new Error(`Spotify API Error: ${response.status}`);
+            throw new Error(`Spotify Search Failed: ${response.status}`);
         }
 
         const data = await response.json();
-        
-        // Format response strictly for frontend
-        const tracks = data.tracks.items.map(track => ({
+
+        const tracks = data.tracks?.items.map(track => ({
             id: track.id,
             name: track.name,
-            artist: track.artists[0].name,
+            artist: track.artists[0]?.name || 'Unknown Artist',
             album: track.album.name,
             image: track.album.images[0]?.url || null,
             duration_ms: track.duration_ms,
             spotify_url: track.external_urls.spotify
-        }));
+        })) || [];
 
         res.json({ tracks });
 
     } catch (error) {
-        console.error('Search endpoint error:', error);
+        console.error("Search Error:", error);
         res.status(500).json({ error: 'Failed to search tracks' });
     }
 });
 
-// Start Server
 app.listen(PORT, () => {
-    console.log(`Spotify Backend running on http://localhost:${PORT}`);
+    console.log(`TuneFlow Backend running on http://localhost:${PORT}`);
 });
